@@ -35,16 +35,25 @@ pub fn ssr(comptime T: type, allocator: std.mem.Allocator, x: []const T, y: []co
     defer allocator.free(residual_list);
 
     for (0..x.len) |i| {
-        const ssr_pred_height: f16 = linear_fn(y_int, slope, x[i]);
-        residual_list[i] = squared_residual(y[i], ssr_pred_height);
+        const ssr_pred: T = linear_fn(T, y_int, slope, x[i]);
+        residual_list[i] = squared_residual(T, y[i], ssr_pred);
     }
 
-    var sum: f16 = 0.0;
+    var sum: T = 0;
     for (residual_list) |residual| {
         sum += residual;
     }
 
     return sum;
+}
+
+test "ssr" {
+    const allocator = std.testing.allocator;
+    const x_input = [_]f16{ 63, 67, 70, 72 };
+    const y_input = [_]f16{ 120, 140, 150, 170 };
+    const slope: f16 = 0.1846;
+    const result1 = try ssr(f16, allocator, x_input[0..], y_input[0..], 39, slope);
+    try expectApproxEqAbs(@as(f16, 36160.0), result1, 0.001);
 }
 
 pub fn get_deriv(allocator: std.mem.Allocator, y_int: f16, weight: []const f16, height: []const f16, learning_rate: f16, slope: f16) ![2]f16 {
@@ -99,4 +108,17 @@ test "linear_fn basic test" {
     // Test case 3: y = 0 + 0x, x = 10 should give 0
     const result3 = linear_fn(f16, 0.0, 0.0, 10.0);
     try expectApproxEqAbs(@as(f16, 0.0), result3, 0.001);
+}
+
+test "squared_residual" {
+    const result1 = squared_residual(f16, 4.0, 2.0);
+    try expectApproxEqAbs(@as(f16, 4.0), result1, 0.001);
+
+    // reverse negative
+    const result2 = squared_residual(f16, 2.0, 4.0);
+    try expectApproxEqAbs(@as(f16, 4.0), result2, 0.001);
+
+    // big difference
+    const result3 = squared_residual(f16, 1.3, 110.0);
+    try expectApproxEqAbs(@as(f16, 11815.69), result3, 0.001);
 }
